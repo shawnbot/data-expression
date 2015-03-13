@@ -18,17 +18,19 @@ var input = (args[0] !== '-')
 var settings = dex.util.objectify(options.set),
     reqs = dex.util.arrayify(options.require)
       .concat(['Math', 'Array']),
-    transforms = args.slice(1)
-      .map(function(expr) {
-        // console.warn('expression:', expr, reqs);
-        return dex.context(expr)
-          .set(settings)
-          .require(reqs)
-          .setter();
-      }),
+    transforms = dex.util.arrayify(options.map)
+      .map(dex.map)
+      .concat(args.slice(1)
+        .map(function(expr) {
+          // console.warn('expression:', expr, reqs);
+          return dex.context(expr)
+            .set(settings)
+            .require(reqs)
+            .setter();
+        })),
     transform = function(d) {
       for (var i = 0, len = transforms.length; i < len; i++) {
-        transforms[i](d);
+        d = transforms[i](d);
       }
       return d;
     };
