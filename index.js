@@ -11,6 +11,7 @@ module.exports = {
   evaluateWith: curry(evaluate),
   evaluator: evaluator,
   context: context,
+  map: map,
   set: set,
   util: util,
   GLOBAL_IMPORTS: GLOBAL_IMPORTS
@@ -125,6 +126,10 @@ function context(src) {
   };
 
   return context;
+}
+
+function map(src) {
+  return evaluator('(' + src + ')');
 }
 
 /*
