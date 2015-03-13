@@ -1,18 +1,18 @@
-var esprima = require('esprima'),
+var staticEval = require('static-eval'),
     curry = require('curry'),
     xtend = require('xtend'),
-    staticEval = require('static-eval'),
+    util = require('./lib/util'),
+    parse = require('./lib/parse'),
     GLOBAL_IMPORTS = require('./lib/globals.js');
 
-function parse(src) {
-  return esprima.parse(src).body[0].expression;
-}
-
 module.exports = {
+  parse: parse,
   evaluate: evaluate,
+  evaluateWith: curry(evaluate),
   evaluator: evaluator,
-  evaluateWith: curry(evaluateWith),
   context: context,
+  set: set,
+  util: util,
   GLOBAL_IMPORTS: GLOBAL_IMPORTS
 };
 
@@ -33,18 +33,6 @@ function evaluator(src) {
   return function(data) {
     return staticEval(ast, data);
   };
-}
-
-/*
- * the curried version of evaluate(), which takes 0-2 arguments:
- *
- * evaluateWith() -> function(src, data) { ... }
- * evaluateWith(src) -> function(data) { ... }
- * evaluateWith(src, data) -> value
- */
-function evaluateWith(src, data) {
-  var ast = parse(src);
-  return staticEval(ast, data);
 }
 
 /*
@@ -76,14 +64,27 @@ function context(src) {
       evaluate = evaluator(src),
       self,
       context = function(d) {
-        if (self) d[self] = this;
-        if (d) d = xtend({}, data, d);
+        if (d) {
+          d = xtend({}, data, d);
+          if (self) d[self] = this;
+        }
         return evaluate(d || data);
       };
 
   // context.require('fs'); or
   // context.require('fs', '_fs');
   context.require = function(name, key) {
+    if (Array.isArray(name)) {
+      name.forEach(function(mod) {
+        var bits = mod.split(/\s*=\s*/);
+        if (bits.length > 1) {
+          context.require(bits[1], bits[0]);
+        } else {
+          context.require(mod);
+        }
+      });
+      return context;
+    }
     if (name in GLOBAL_IMPORTS) {
       var vars = GLOBAL_IMPORTS[name]();
       return context.set(vars);
@@ -117,5 +118,32 @@ function context(src) {
     return context;
   };
 
+  context.setter = function() {
+    return function(d) {
+      return set(src)(d, data);
+    };
+  };
+
   return context;
+}
+
+/*
+ * generates a setter function that assigns the object's key named in the
+ * left-hand identifier of the expression to the right-hand expression
+ * evaluated with the object as data:
+ *
+ * var setAtoB = setter('a = b + 1'),
+ *     obj = {b: 1};
+ * setAtoB(obj);
+ * obj === {b: 1, a: 2};
+ */
+function set(src) {
+  var ast = parse(src),
+      left = ast.left,
+      right = ast.right;
+  return function(d) {
+    var d0 = xtend.apply(null, [{}].concat([].slice.call(arguments)));
+    d[left.name] = evaluate(right, d0);
+    return d;
+  };
 }
