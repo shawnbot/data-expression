@@ -1,6 +1,6 @@
 {
-  "name": "js-expr",
-  "version": "1.0.0",
+  "name": "evoke",
+  "version": "0.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "curry": "^1.2.0",
-    "dynmod": "^0.7.3",
     "esprima": "^2.1.0",
     "static-eval": "^0.2.3",
     "xtend": "^4.0.0"
