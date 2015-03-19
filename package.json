@@ -1,7 +1,7 @@
 {
   "name": "data-expression",
-  "version": "0.2.0",
-  "description": "",
+  "version": "0.2.1",
+  "description": "Evaluate static JavaScript expressions, safely",
   "main": "index.js",
   "bin": {
     "datex": "bin/datex.js"
@@ -9,7 +9,14 @@
   "scripts": {
     "test": "mocha"
   },
-  "author": "Shawn Allen",
+  "author": {
+    "name": "Shawn Allen",
+    "url": "https://github.com/shawnbot"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shawnbot/data-expression.git"
+  },
   "license": "CC0",
   "dependencies": {
     "esprima": "^2.1.0",
