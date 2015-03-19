@@ -1,39 +1,66 @@
 #!/usr/bin/env node
-var dex = require('../'),
+var datex = require('../'),
     fs = require('fs'),
     ndjson = require('ndjson'),
     through2 = require('through2'),
+    util = require('../lib/util'),
     yargs = require('yargs')
-      .usage('$0 [--require module] [<filename> | -] setter(s)')
-      .describe('require', 'Expose the named module in each statement')
-      .alias('r', 'require')
+      .usage('datex [options] [input] [--filter expr] [--map expr] [--set expr]')
+      .describe('set', 'Manipulate data with an assignment expression, e.g.\n"foo = bar + 1"')
+      .describe('filter', 'Filter data with an expression, e.g. "foo > 1"')
+      .describe('map', 'Map data with an object expression, e.g.\n"{foo: bar + 1}")')
+      .describe('require', 'Expose the named module in every expression. You can also use the form "name=module".')
+      .alias('require', 'r')
+      .alias('filter', 'f')
+      .alias('map', 'm')
       .alias('help', 'h'),
     options = yargs.argv,
     args = options._;
 
-var input = (args[0] !== '-')
+if (options.help) {
+  yargs.showHelp();
+  return process.exit(1);
+}
+
+var input = (args.length && args[0] !== '-')
   ? fs.createReadStream(args[0])
   : process.stdin;
 
-var settings = dex.util.objectify(options.set),
-    reqs = dex.util.arrayify(options.require)
-      .concat(['Math', 'Array']),
-    transforms = dex.util.arrayify(options.map)
-      .map(dex.map)
-      .concat(args.slice(1)
-        .map(function(expr) {
-          // console.warn('expression:', expr, reqs);
-          return dex.context(expr)
-            .set(settings)
-            .require(reqs)
-            .setter();
-        })),
-    transform = function(d) {
-      for (var i = 0, len = transforms.length; i < len; i++) {
-        d = transforms[i](d);
+var settings = util.objectify(options.set),
+    reqs = util.arrayify(options.require)
+      .concat(['Math', 'Array']);
+
+var expr = function(expr) {
+  // console.warn('expression:', expr, reqs);
+  return datex(expr)
+    .set(settings)
+    .require(reqs);
+};
+
+var setters = util.arrayify(options.set)
+  .map(expr);
+
+var transforms = util.arrayify(options.map)
+  .map(datex.map)
+  .concat(setters);
+
+var filters = util.arrayify(options.filter)
+      .map(expr),
+    filter = function(d) {
+      for (var i = 0, len = filters.length; i < len; i++) {
+        if (!filters[i].call(d, d)) {
+          return false;
+        }
       }
-      return d;
+      return true;
     };
+
+var transform = function(d) {
+  for (var i = 0, len = transforms.length; i < len; i++) {
+    d = transforms[i](d);
+  }
+  return d;
+};
 
 var output = options.out
   ? fs.createWriteStream(options.out)
@@ -41,6 +68,12 @@ var output = options.out
 
 input
   .pipe(ndjson.parse())
+  .pipe(through2.obj(function(d, enc, next) {
+    if (filter(d)) {
+      return next(null, d);
+    }
+    next();
+  }))
   .pipe(through2.obj(function(d, enc, next) {
     return next(null, transform(d));
   }))
