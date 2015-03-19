@@ -36,7 +36,7 @@ describe('contexts', function() {
   it('create setters', function() {
     var set = datex('a = b + 1');
     var data = {b: 2};
-    assert.equal(set(data), 3);
+    assert.strictEqual(set(data), data);
     assert.equal(data.a, 3);
   });
 
