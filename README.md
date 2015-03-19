@@ -16,7 +16,7 @@ The `setter()` function takes an assignment statement and evaluates
 it in the context of the provided object, then returns the modified
 object:
 ```js
-> var setter = datexet('foo = foo * 2');
+> var setter = datex('foo = foo * 2');
 > setter({foo: 10});
 {foo: 20}
 ```
