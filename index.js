@@ -54,7 +54,7 @@ function evaluator(expr) {
       var bits = mod.split(/\s*=\s*/);
       name = bits[0];
       mod = bits[1];
-      console.log('require "%s" as "%s"', mod, name);
+      // console.log('require "%s" as "%s"', mod, name);
     }
     var value;
     switch (mod) {
