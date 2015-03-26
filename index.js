@@ -1,4 +1,5 @@
 var staticEval = require('static-eval'),
+    prequire = require('parent-require'),
     extend = require('extend'),
     parse = require('./lib/parse'),
     THIS = this;
@@ -65,7 +66,7 @@ function evaluator(expr) {
         value = global[mod];
         break;
       default:
-        value = require(mod);
+        value = prequire(mod);
     }
     return evaluator.set(name || mod, value);
   };

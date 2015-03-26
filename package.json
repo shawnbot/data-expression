@@ -23,7 +23,8 @@
     "esprima-walk": "^0.1.0",
     "extend": "^2.0.0",
     "ndjson": "^1.3.0",
-    "static-eval": "^0.2.4",
+    "parent-require": "^1.0.0",
+    "static-eval": "git://github.com/shawnbot/static-eval.git#evaluate-this",
     "through2": "^0.6.3",
     "yargs": "^3.5.4"
   },
