@@ -1,4 +1,5 @@
 var staticEval = require('static-eval'),
+    path = require('path'),
     prequire = require('parent-require'),
     extend = require('extend'),
     parse = require('./lib/parse'),
@@ -55,7 +56,9 @@ function evaluator(expr) {
       var bits = mod.split(/\s*=\s*/);
       name = bits[0];
       mod = bits[1];
-      // console.log('require "%s" as "%s"', mod, name);
+      if (mod.charAt(0) === '.') {
+        mod = path.join(process.cwd(), mod);
+      }
     }
     var value;
     switch (mod) {
@@ -66,7 +69,11 @@ function evaluator(expr) {
         value = global[mod];
         break;
       default:
-        value = prequire(mod);
+        try {
+          value = require(mod);
+        } catch (err) {
+          value = prequire(mod);
+        }
     }
     return evaluator.set(name || mod, value);
   };
