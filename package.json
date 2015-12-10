@@ -1,7 +1,7 @@
 {
   "name": "data-expression",
-  "version": "0.2.2",
-  "description": "Evaluate static JavaScript expressions, safely",
+  "version": "1.0.0",
+  "description": "Build JavaScript expressions programmatically, and evaluate them with data",
   "main": "index.js",
   "bin": {
     "datex": "bin/datex.js"
