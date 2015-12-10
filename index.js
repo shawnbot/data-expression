@@ -1,158 +1,78 @@
-var staticEval = require('static-eval'),
-    extend = require('extend'),
-    parse = require('./lib/parse'),
-    THIS = this;
+var vm = require('vm');
+var extend = require('extend');
 
-function evaluate(expr, vars) {
-  var e = evaluator(expr);
-  if (arguments.length === 1) {
-    return e;
-  }
-  return e(vars);
-}
-
-function evaluator(expr) {
-  if (typeof expr !== 'object') expr = parse(expr);
-
-  var context = {},
-      evaluator = expr.type === 'AssignmentExpression'
-        ? assignment(expr, evalWith)
-        : function(vars) {
-          return evalWith(expr, vars);
-        };
-
-  function evalWith(expr, vars) {
-    var ctx = extend(context, vars);
-    return staticEval(expr, ctx);
+function evaluator(expr, context) {
+  context = context || {};
+  if (typeof expr === 'object') {
+    expr = createObjectExpression(expr);
+  } else if (expr.match(/^\s*\{/)) {
+    // guard against object expressions being interpreted as blocks
+    expr = '(' + expr + ')';
   }
 
-  evaluator.set = function(name, value) {
-    if (typeof name == 'object') {
-      return evaluator.update(name);
+  var ev = function(data) {
+    data = data ? extend({}, context, data) : context;
+    try {
+      return vm.runInContext(expr, vm.createContext(data));
+    } catch (error) {
+      return undefined;
     }
-    context[name] = value;
-    return evaluator;
   };
 
-  evaluator.update = function(ctx) {
-    extend(context, ctx);
-    return evaluator;
+  ev.set = function(symbol, value) {
+    if (typeof symbol === 'object') {
+      extend(context, symbol);
+    } else {
+      context[symbol] = value;
+    }
+    sandbox = null;
+    return ev;
   };
 
-  evaluator.get = function(name) {
-    return context[name];
-  };
-  
-  evaluator.require = function(mod, name) {
+  ev.require = function(mod, symbol) {
     if (Array.isArray(mod)) {
-      mod.forEach(function(m) {
-        evaluator.require(m);
-      });
-      return evaluator;
+      mod.forEach(ev.require);
+      return ev;
     }
+
+    var value;
     if (mod.indexOf('=') > -1) {
       var bits = mod.split(/\s*=\s*/);
-      name = bits[0];
+      symbol = bits[0];
       mod = bits[1];
-      console.log('require "%s" as "%s"', mod, name);
+      // console.log('require "%s" as "%s"', mod, symbol);
     }
-    var value;
-    switch (mod) {
-      case 'Array':
-      case 'Math':
-      case 'Number':
-      case 'Object':
-        value = global[mod];
-        break;
-      default:
-        value = require(mod);
-    }
-    return evaluator.set(name || mod, value);
+    return ev.set(symbol || mod, require(mod));
   };
 
-  return evaluator;
+  ev.setter = function() {
+    return setter(expr, context);
+  };
+
+  return ev;
 }
 
-function assignment(expr, evaluate) {
-  if (!evaluate) evaluate = staticEval;
-  var left = expr.left,
-      right = expr.right;
-  switch (left.type) {
-    case 'Identifier':
-      return function(vars) {
-        vars[left.name] = evaluate(right, vars);
-        return vars;
-      };
-    case 'MemberExpression':
-      var obj = left.object,
-          key;
-      if (obj.type === 'ThisExpression') {
-        key = function(vars) { return vars['this'] || this; };
-      } else /* if (obj.type === 'Identifier') */ {
-        key = function(vars) { return vars[obj.name]; };
-      }
-      return function(vars) {
-        var o = key.call(this, vars);
-        if (o === THIS) return undefined;
-        o[left.property.name] = evaluate(right, vars);
-        return o;
-      };
-    default:
-      throw 'expected Identifier or MemberExpression; got: ' + expr.left.type;
+function setter(expr, context) {
+  return evaluator('(' + expr + '), this', context);
+}
+
+function evaluate(expr, context) {
+  try {
+    return vm.runInNewContext(expr, context || {});
+  } catch (error) {
+    return undefined;
   }
 }
 
-function map(expr) {
-  var ast;
-  switch (typeof expr) {
-    case 'string':
-      ast = parse('(' + expr + ')');
-      if (ast.type === 'Identifier') {
-        // just use the identifier
-      } else if (ast.type !== 'ObjectExpression') {
-        throw 'expected ObjectExpression, got: ' + ast.type;
-      }
-      break;
-    case 'object':
-      ast = {
-        type: 'ObjectExpression',
-        properties: Object.keys(expr).map(function(key) {
-          return property(key, expr[key]);
-        })
-      };
-      break;
-  }
-
-  var e = evaluator(ast);
-  e.key = function(key, expr) {
-    ast.properties.push(property(key, expr));
-    return e;
-  };
-
-  return e;
+function createObjectExpression(obj) {
+  return '({' +
+    Object.keys(obj).reduce(function(list, key) {
+      list.push('"' + key.replace(/"/g, '\\"') + '": ' + obj[key]);
+      return list;
+    }, []).join(', ') +
+  '})';
 }
 
-function property(key, expr) {
-  return {
-    type: 'Property',
-    key: {
-      type: 'Identifier',
-      name: key
-    },
-    value: parse(expr),
-    // XXX not sure if these are necessary
-    computed: false,
-    kind: 'init',
-    method: false,
-    shorthand: false
-  };
-}
-
-evaluate.evaluator = evaluator;
-evaluate.map = map;
-evaluate.parse = parse;
-
-module.exports = evaluate;
-module.exports.evaluate = function(expr, vars) {
-  return evaluate(expr, vars || null);
-};
+module.exports = evaluator;
+module.exports.evaluate = evaluate;
+module.exports.setter = setter;
