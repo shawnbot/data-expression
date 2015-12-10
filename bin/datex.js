@@ -27,21 +27,22 @@ var input = (args.length && args[0] !== '-')
   : process.stdin;
 
 var settings = util.objectify(options.set),
-    reqs = util.arrayify(options.require)
-      .concat(['Math', 'Array']);
+    reqs = util.arrayify(options.require);
 
 var expr = function(expr) {
   // console.warn('expression:', expr, reqs);
   return datex(expr)
-    .set(settings)
     .require(reqs);
 };
 
 var setters = util.arrayify(options.set)
-  .map(expr);
+  .map(expr)
+  .map(function(ex) {
+    return ex.setter();
+  });
 
 var transforms = util.arrayify(options.map)
-  .map(datex.map)
+  .map(expr)
   .concat(setters);
 
 var filters = util.arrayify(options.filter)
