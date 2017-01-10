@@ -1,6 +1,6 @@
 {
   "name": "data-expression",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Evaluate static JavaScript expressions, safely",
   "main": "index.js",
   "bin": {
